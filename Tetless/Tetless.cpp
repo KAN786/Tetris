@@ -127,7 +127,7 @@ int main() {
     setcursortype(NOCURSOR); //커서 없앰
     title(); //메인타이틀 호출
     reset(); //게임판 리셋
-    PlaySound("C:\Users\Daehan\source\repos\Tetless\tetris jazz3.mp3", 0, SND_FILENAME | SND_ASYNC | SND_LOOP);
+    //PlaySound("C:\Users\Daehan\source\repos\Tetless\tetris jazz3.mp3", 0, SND_FILENAME | SND_ASYNC | SND_LOOP);
     while (1) {
         for (i = 0; i < 5; i++) { //블록이 한칸떨어지는동안 5번 키입력받을 수 있음
             check_key(); //키입력확인
@@ -152,12 +152,11 @@ void title(void) {
     int y = 4; //타이틀화면이 표시되는 y좌표
     int cnt; //타이틀 프레임을 세는 변수
 
-    gotoxy(x, y + 0); printf("■□□□■■■□□■■□□■■"); Sleep(100);
-    gotoxy(x, y + 1); printf("■■■□  ■□□    ■■□□■"); Sleep(100);
-    gotoxy(x, y + 2); printf("□□□■              □■  ■"); Sleep(100);
-    gotoxy(x, y + 3); printf("■■□■■  □  ■  □□■□□"); Sleep(100);
-    gotoxy(x, y + 4); printf("■■  ■□□□■■■□■■□□"); Sleep(100);
-    gotoxy(x, y + 5); printf("      blog.naver.com/azure0777"); Sleep(100);
+    gotoxy(x, y + 0); printf("■ □ □ □ ■ ■ ■ □ □ ■ ■ □ □ ■ ■"); Sleep(100);
+    gotoxy(x, y + 1); printf("■ ■ ■ □   ■ □ □     ■ ■ □ □ ■"); Sleep(100);
+    gotoxy(x, y + 2); printf("□ □ □ ■               □ ■   ■"); Sleep(100);
+    gotoxy(x, y + 3); printf("■ ■ □ ■ ■   □   ■   □ □ ■ □ □"); Sleep(100);
+    gotoxy(x, y + 4); printf("■ ■   ■ □ □ □ ■ ■ ■ □ ■ ■ □ □"); Sleep(100);
     gotoxy(x + 5, y + 2); printf("T E T R I S"); Sleep(100);
     gotoxy(x, y + 7); printf("Please Enter Any Key to Start..");
     gotoxy(x, y + 9); printf("  △   : Shift");
@@ -259,7 +258,6 @@ void draw_map(void) { //게임 상태 표시를 나타내는 함수
     gotoxy(STATUS_X_ADJ, y + 15); printf("  △   : Shift        SPACE : Hard Drop");
     gotoxy(STATUS_X_ADJ, y + 16); printf("◁   ▷ : Left / Right   P   : Pause");
     gotoxy(STATUS_X_ADJ, y + 17); printf("  ▽   : Soft Drop     ESC  : Quit");
-    gotoxy(STATUS_X_ADJ, y + 20); printf("blog.naver.com/azure0777");
 }
 
 void draw_main(void) { //게임판 그리는 함수
@@ -646,14 +644,14 @@ void pause(void) { //게임 일시정지 함수
     int y = 5;
 
     for (i = 1; i < MAIN_X - 2; i++) { //게임 일시정지 메세지
-        gotoxy(x, y + 0); printf("▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤");
-        gotoxy(x, y + 1); printf("▤                              ▤");
-        gotoxy(x, y + 2); printf("▤  +-----------------------+   ▤");
-        gotoxy(x, y + 3); printf("▤  |       P A U S E       |   ▤");
-        gotoxy(x, y + 4); printf("▤  +-----------------------+   ▤");
-        gotoxy(x, y + 5); printf("▤  Press any key to resume..   ▤");
-        gotoxy(x, y + 6); printf("▤                              ▤");
-        gotoxy(x, y + 7); printf("▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤");
+        gotoxy(x, y + 0); printf("▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤");
+        gotoxy(x, y + 1); printf("▤                             ▤");
+        gotoxy(x, y + 2); printf("▤  +-----------------------+  ▤");
+        gotoxy(x, y + 3); printf("▤  |       P A U S E       |  ▤");
+        gotoxy(x, y + 4); printf("▤  +-----------------------+  ▤");
+        gotoxy(x, y + 5); printf("▤  Press any key to resume..  ▤");
+        gotoxy(x, y + 6); printf("▤                             ▤");
+        gotoxy(x, y + 7); printf("▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤");
     }
     _getch(); //키입력시까지 대기
 
