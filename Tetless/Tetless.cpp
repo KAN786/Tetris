@@ -145,7 +145,7 @@ int main() {
     setcursortype(NOCURSOR); //커서 없앰
     title(); //메인타이틀 호출
     reset(); //게임판 리셋
-    PlaySound("tetris_jazz.wav", 0, SND_FILENAME | SND_ASYNC | SND_LOOP);
+    //PlaySound("tetris_jazz.wav", 0, SND_FILENAME | SND_ASYNC | SND_LOOP);
   
     while (1) {
         for (i = 0; i < 5; i++) { //블록이 한칸떨어지는동안 5번 키입력받을 수 있음
@@ -303,7 +303,6 @@ void draw_main(void) { //게임판 그리는 함수
                 default:
                     print_color_block(main_org[i][j]);
                 }
-
                 
             }
         }
@@ -403,8 +402,6 @@ void check_key(void) {
                 space_key_on = 1; //스페이스키 flag를 띄움
                 while (crush_on == 0) { //바닥에 닿을때까지 이동시킴
                     drop_block();
-                    score += level; // hard drop 보너스
-                    gotoxy(STATUS_X_ADJ, STATUS_Y_SCORE); printf("        %6d", score); //점수 표시
                 }
                 break;
             case P: //P(대문자) 눌렀을때
@@ -556,11 +553,9 @@ void check_line(void) {
             if (main_org[i][j] > 0) block_amount++;
         }
         if (block_amount == MAIN_X - 2) { //블록이 가득 찬 경우
-            if (level_up_on == 0) { //레벨업상태가 아닌 경우에(레벨업이 되면 자동 줄삭제가 있음)
-                score += 100 * level; //점수추가
-                cnt++; //지운 줄 갯수 카운트 증가
-                combo++; //콤보수 증가
-            }
+            score += 100 * level * (1 + ((MAIN_Y - 1 - i) / 3) * 0.5); //높이에 따른 점수추가
+            cnt++; //지운 줄 갯수 카운트 증가
+            combo++; //콤보수 증가
             for (k = i; k > 1; k--) { //윗줄을 한칸씩 모두 내림(윗줄이 천장이 아닌 경우에만)
                 for (l = 1; l < MAIN_X - 1; l++) {
                     if (main_org[k - 1][l] != CEILLING) main_org[k][l] = main_org[k - 1][l];
@@ -587,7 +582,7 @@ void check_line(void) {
 void check_level_up(void) {
     int i, j;
 
-    if (cnt >= 10) { //레벨별로 10줄씩 없애야함. 10줄이상 없앤 경우
+    if (cnt >= 1) { //레벨별로 10줄씩 없애야함. 10줄이상 없앤 경우
         draw_main();
         level_up_on = 1; //레벨업 flag를 띄움
         level += 1; //레벨을 1 올림
@@ -609,16 +604,7 @@ void check_level_up(void) {
         reset_main_cpy(); //텍스트를 지우기 위해 main_cpy을 초기화.
         //(main_cpy와 main_org가 전부 다르므로 다음번 draw()호출시 게임판 전체를 새로 그리게 됨)
 
-        for (i = MAIN_Y - 2; i > MAIN_Y - 2 - (level - 1); i--) { //레벨업보상으로 각 레벨-1의 수만큼 아랫쪽 줄을 지워줌
-            for (j = 1; j < MAIN_X - 1; j++) {
-                main_org[i][j] = 2 + j % 7 ; // 줄을 블록으로 모두 채우고
-                gotoxy(MAIN_X_ADJ + j, MAIN_Y_ADJ + i); // 별을 찍어줌.. 이뻐보이게
-                printf("★");
-                Sleep(20);
-            }
-        }
-        Sleep(100); //별찍은거 보여주기 위해 delay
-        check_line(); //블록으로 모두 채운것 지우기
+
         //.check_line()함수 내부에서 level up flag가 켜져있는 경우 점수는 없음.
         switch (level) { //레벨별로 속도를 조절해줌.
         case 2:
