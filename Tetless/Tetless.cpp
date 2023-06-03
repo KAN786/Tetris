@@ -21,11 +21,24 @@
 #define false 0
 #define true 1
 
-#define ACTIVE_BLOCK -2 // 게임판배열에 저장될 블록의 상태들
+#define ACTIVE_BLOCK_RED -2 // 게임판배열에 저장될 블록의 상태들
+#define ACTIVE_BLOCK_BLUE -3
+#define ACTIVE_BLOCK_ORANGE -4
+#define ACTIVE_BLOCK_YELLOW -5
+#define ACTIVE_BLOCK_GREEN -6
+#define ACTIVE_BLOCK_PURPLE -7
+#define ACTIVE_BLOCK_BROWN -8
+
 #define CEILLING -1     // 블록이 이동할 수 있는 공간은 0 또는 음의 정수료 표현
 #define EMPTY 0         // 블록이 이동할 수 없는 공간은 양수로 표현
 #define WALL 1
-#define INACTIVE_BLOCK 2 // 이동이 완료된 블록값
+#define INACTIVE_BLOCK_RED 2 // 이동이 완료된 블록값 
+#define INACTIVE_BLOCK_BLUE 3
+#define INACTIVE_BLOCK_ORANGE 4
+#define INACTIVE_BLOCK_YELLOW 5
+#define INACTIVE_BLOCK_GREEN 6
+#define INACTIVE_BLOCK_PURPLE 7
+#define INACTIVE_BLOCK_BROWN 8
 
 #define MAIN_X 11 //게임판 가로크기
 #define MAIN_Y 23 //게임판 세로크기
@@ -61,6 +74,8 @@ int b_type_next; //다음 블록값 저장
 
 int main_org[MAIN_Y][MAIN_X]; //게임판의 정보를 저장하는 배열 모니터에 표시후에 main_cpy로 복사됨
 int main_cpy[MAIN_Y][MAIN_X]; //즉 maincpy는 게임판이 모니터에 표시되기 전의 정보를 가지고 있음
+
+
 //main의 전체를 계속 모니터에 표시하지 않고(이렇게 하면 모니터가 깜빡거림)
 //main_cpy와 배열을 비교해서 값이 달라진 곳만 모니터에 고침
 int bx, by; //이동중인 블록의 게임판상의 x,y좌표를 저장
@@ -86,6 +101,7 @@ void reset_main(void); //메인 게임판(main_org[][]를 초기화)
 void reset_main_cpy(void); //copy 게임판(main_cpy[][]를 초기화)
 void draw_map(void); //게임 전체 인터페이스를 표시
 void draw_main(void); //게임판을 그림
+void print_color_block(int x); //색깔 출력
 void new_block(void); //새로운 블록을 하나 만듦
 void check_key(void); //키보드로 키를 입력받음
 void drop_block(void); //블록을 아래로 떨어트림
@@ -282,15 +298,13 @@ void draw_main(void) { //게임판 그리는 함수
                     printf(". ");
                     break;
                 case WALL: //벽모양
-                    printf("▩");
+                    printf("🔲");
                     break;
-                case INACTIVE_BLOCK: //굳은 블럭 모양
-                    printf("□");
-                    break;
-                case ACTIVE_BLOCK: //움직이고있는 블럭 모양
-                    printf("■");
-                    break;
+                default:
+                    print_color_block(main_org[i][j]);
                 }
+
+                
             }
         }
     }
@@ -301,6 +315,35 @@ void draw_main(void) { //게임판 그리는 함수
     }
 }
 
+void print_color_block(int x)
+{
+    
+    x = abs(x);
+    switch (x)
+    {
+    case INACTIVE_BLOCK_RED:
+        printf("🟥");
+        break;
+    case INACTIVE_BLOCK_BLUE:
+        printf("🟦");
+        break;
+    case INACTIVE_BLOCK_ORANGE:
+        printf("🟧");
+        break;
+    case INACTIVE_BLOCK_YELLOW:
+        printf("🟨");
+        break;
+    case INACTIVE_BLOCK_GREEN:
+        printf("🟩");
+        break;
+    case INACTIVE_BLOCK_PURPLE:
+        printf("🟪");
+        break;
+    case INACTIVE_BLOCK_BROWN:
+        printf("🟫");
+        break;
+    }
+}
 void new_block(void) { //새로운 블록 생성
     int i, j;
 
@@ -314,14 +357,14 @@ void new_block(void) { //새로운 블록 생성
 
     for (i = 0; i < 4; i++) { //게임판 bx, by위치에 블럭생성
         for (j = 0; j < 4; j++) {
-            if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i][bx + j] = ACTIVE_BLOCK;
+            if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i][bx + j] = -(b_type + 2);
         }
     }
     for (i = 1; i < 3; i++) { //게임상태표시에 다음에 나올블럭을 그림
         for (j = 0; j < 4; j++) {
             if (blocks[b_type_next][0][i][j] == 1) {
                 gotoxy(STATUS_X_ADJ + 2 + j, i + 6);
-                printf("■");
+                print_color_block(-(b_type_next + 2));
             }
             else {
                 gotoxy(STATUS_X_ADJ + 2 + j, i + 6);
@@ -384,7 +427,7 @@ void drop_block(void) {
     if (crush_on && check_crush(bx, by + 1, b_rotation) == false) { //밑이 비어있지않고 crush flag가 켜저있으면
         for (i = 0; i < MAIN_Y; i++) { //현재 조작중인 블럭을 굳힘
             for (j = 0; j < MAIN_X; j++) {
-                if (main_org[i][j] == ACTIVE_BLOCK) main_org[i][j] = INACTIVE_BLOCK;
+                if (main_org[i][j] <= -2) main_org[i][j] = abs(main_org[i][j]);
             }
         }
         crush_on = 0; //flag를 끔
@@ -409,45 +452,55 @@ int check_crush(int bx, int by, int b_rotation) { //지정된 좌표와 회전�
 
 void move_block(int dir) { //블록을 이동시킴
     int i, j;
-
+    int temp;
     switch (dir) {
     case LEFT: //왼쪽방향
+
         for (i = 0; i < 4; i++) { //현재좌표의 블럭을 지움
-            for (j = 0; j < 4; j++) {
-                if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i][bx + j] = EMPTY;
+            for (j = 0; j < 4; j++){
+                if (blocks[b_type][b_rotation][i][j] == 1){
+                    temp = main_org[by + i][bx + j];
+                    main_org[by + i][bx + j] = EMPTY;
+                }
             }
         }
         for (i = 0; i < 4; i++) { //왼쪽으로 한칸가서 active block을 찍음
             for (j = 0; j < 4; j++) {
-                if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i][bx + j - 1] = ACTIVE_BLOCK;
+                if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i][bx + j - 1] = temp;
             }
         }
         bx--; //좌표값 이동
         break;
 
     case RIGHT:    //오른쪽 방향. 왼쪽방향이랑 같은 원리로 동작
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < 4; i++) { //현재좌표의 블럭을 지움
             for (j = 0; j < 4; j++) {
-                if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i][bx + j] = EMPTY;
+                if (blocks[b_type][b_rotation][i][j] == 1) {
+                    temp = main_org[by + i][bx + j];
+                    main_org[by + i][bx + j] = EMPTY;
+                }
             }
         }
         for (i = 0; i < 4; i++) {
             for (j = 0; j < 4; j++) {
-                if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i][bx + j + 1] = ACTIVE_BLOCK;
+                if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i][bx + j + 1] = temp;
             }
         }
         bx++;
         break;
 
     case DOWN:    //아래쪽 방향. 왼쪽방향이랑 같은 원리로 동작
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < 4; i++) { //현재좌표의 블럭을 지움
             for (j = 0; j < 4; j++) {
-                if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i][bx + j] = EMPTY;
+                if (blocks[b_type][b_rotation][i][j] == 1) {
+                    temp = main_org[by + i][bx + j];
+                    main_org[by + i][bx + j] = EMPTY;
+                }
             }
         }
         for (i = 0; i < 4; i++) {
             for (j = 0; j < 4; j++) {
-                if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i + 1][bx + j] = ACTIVE_BLOCK;
+                if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i + 1][bx + j] = temp;
             }
         }
         by++;
@@ -456,28 +509,34 @@ void move_block(int dir) { //블록을 이동시킴
     case UP: //키보드 위쪽 눌렀을때 회전시킴.
         for (i = 0; i < 4; i++) { //현재좌표의 블럭을 지움
             for (j = 0; j < 4; j++) {
-                if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i][bx + j] = EMPTY;
+                if (blocks[b_type][b_rotation][i][j] == 1) {
+                    temp = main_org[by + i][bx + j];
+                    main_org[by + i][bx + j] = EMPTY;
+                }
             }
         }
         b_rotation = (b_rotation + 1) % 4; //회전값을 1증가시킴(3에서 4가 되는 경우는 0으로 되돌림)
         for (i = 0; i < 4; i++) { //회전된 블록을 찍음
             for (j = 0; j < 4; j++) {
-                if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i][bx + j] = ACTIVE_BLOCK;
+                if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i][bx + j] = temp;
             }
         }
         break;
 
     case 100: //블록이 바닥, 혹은 다른 블록과 닿은 상태에서 한칸위로 올려 회전이 가능한 경우
         //이를 동작시키는 특수동작
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < 4; i++) { //현재좌표의 블럭을 지움
             for (j = 0; j < 4; j++) {
-                if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i][bx + j] = EMPTY;
+                if (blocks[b_type][b_rotation][i][j] == 1) {
+                    temp = main_org[by + i][bx + j];
+                    main_org[by + i][bx + j] = EMPTY;
+                }
             }
         }
         b_rotation = (b_rotation + 1) % 4;
         for (i = 0; i < 4; i++) {
             for (j = 0; j < 4; j++) {
-                if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i - 1][bx + j] = ACTIVE_BLOCK;
+                if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i - 1][bx + j] = temp;
             }
         }
         by--;
@@ -552,7 +611,7 @@ void check_level_up(void) {
 
         for (i = MAIN_Y - 2; i > MAIN_Y - 2 - (level - 1); i--) { //레벨업보상으로 각 레벨-1의 수만큼 아랫쪽 줄을 지워줌
             for (j = 1; j < MAIN_X - 1; j++) {
-                main_org[i][j] = INACTIVE_BLOCK; // 줄을 블록으로 모두 채우고
+                main_org[i][j] = 2 + j % 7 ; // 줄을 블록으로 모두 채우고
                 gotoxy(MAIN_X_ADJ + j, MAIN_Y_ADJ + i); // 별을 찍어줌.. 이뻐보이게
                 printf("★");
                 Sleep(20);
