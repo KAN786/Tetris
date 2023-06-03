@@ -1,4 +1,6 @@
-﻿#define _CRT_SECURE_NO_WARNINGS
+﻿
+
+#define _CRT_SECURE_NO_WARNINGS
 #include<stdio.h>
 #include<windows.h>
 #include<conio.h>
@@ -127,7 +129,8 @@ int main() {
     setcursortype(NOCURSOR); //커서 없앰
     title(); //메인타이틀 호출
     reset(); //게임판 리셋
-    //PlaySound("C:\Users\Daehan\source\repos\Tetless\tetris jazz3.mp3", 0, SND_FILENAME | SND_ASYNC | SND_LOOP);
+    PlaySound("tetris_jazz.wav", 0, SND_FILENAME | SND_ASYNC | SND_LOOP);
+  
     while (1) {
         for (i = 0; i < 5; i++) { //블록이 한칸떨어지는동안 5번 키입력받을 수 있음
             check_key(); //키입력확인
