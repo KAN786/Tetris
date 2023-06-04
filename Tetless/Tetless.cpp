@@ -29,7 +29,7 @@
 #define ACTIVE_BLOCK_PURPLE -7
 #define ACTIVE_BLOCK_BROWN -8
 
-#define CEILLING -1     // 블록이 이동할 수 있는 공간은 0 또는 음의 정수료 표현
+#define CEILING -1     // 블록이 이동할 수 있는 공간은 0 또는 음의 정수료 표현
 #define EMPTY 0         // 블록이 이동할 수 없는 공간은 양수로 표현
 #define WALL 1
 #define INACTIVE_BLOCK_RED 2 // 이동이 완료된 블록값 
@@ -41,7 +41,7 @@
 #define INACTIVE_BLOCK_BROWN 8
 
 #define MAIN_X 11 //게임판 가로크기
-#define MAIN_Y 23 //게임판 세로크기
+#define MAIN_Y 24 //게임판 세로크기
 #define MAIN_X_ADJ 3 //게임판 위치조정
 #define MAIN_Y_ADJ 1 //게임판 위치조정
 
@@ -95,6 +95,14 @@ int crush_on = 0; //현재 이동중인 블록이 충돌상태인지 알려주�
 int level_up_on = 0; //다음레벨로 진행(현재 레벨목표가 완료되었음을) 알리는 flag
 int space_key_on = 0; //hard drop상태임을 알려주는 flag
 
+
+//리버스 모드 구현용 변수들
+int reverse_time = 0; //리버스 모드를 시작한 시간
+int reverse_dir = 1; //블럭의 방향(기본 1, 리버스 모드시 -1)
+int reverse_block_y = 0; //(블럭생성 좌표의 y값)
+int reverse_ceiling_y = 3; //(천장 y값)
+int reverse_onprocess_on = 0; // 리버스 모드 전환중일 시 1, 아니면 0
+
 void title(void); //게임시작화면
 void reset(void); //게임판 초기화
 void reset_main(void); //메인 게임판(main_org[][]를 초기화)
@@ -111,6 +119,10 @@ void check_line(void); //줄이 가득찼는지를 판단하고 지움
 void check_level_up(void); //레벨목표가 달성되었는지를 판단하고 levelup시킴
 void check_game_over(void); //게임오버인지 판단하고 게임오버를 진행
 void pause(void);//게임을 일시정지시킴
+
+void reverse_map_on(); //리버스 모드 키기
+void reverse_map_off(); //끄기
+
 
 void gotoxy(int x, int y) { //gotoxy함수
     COORD pos = { 2 * x,y };
@@ -145,7 +157,7 @@ int main() {
     setcursortype(NOCURSOR); //커서 없앰
     title(); //메인타이틀 호출
     reset(); //게임판 리셋
-    //PlaySound("tetris_jazz.wav", 0, SND_FILENAME | SND_ASYNC | SND_LOOP);
+    PlaySound("tetris_jazz_alert.wav", 0, SND_FILENAME | SND_ASYNC | SND_LOOP);
   
     while (1) {
         for (i = 0; i < 5; i++) { //블록이 한칸떨어지는동안 5번 키입력받을 수 있음
@@ -162,7 +174,22 @@ int main() {
         drop_block(); // 블록을 한칸 내림
         check_level_up(); // 레벨업을 체크
         check_game_over(); //게임오버를 체크
-        if (new_block_on == 1) new_block(); // 뉴 블럭 flag가 있는 경우 새로운 블럭 생성
+        if (new_block_on == 1)
+        {
+            int r = rand(), cur_time = time(NULL);
+            if (reverse_time == 0 && 0 <= r && r <= 16383)
+            {
+                reverse_time = cur_time;
+                reverse_map_on();
+            }
+            if (reverse_time != 0 && cur_time - reverse_time >= 45)//45초동안 리버스모드, 난이도에 따라 바뀌게 만들 예정
+            {
+                reverse_map_off();
+            }
+
+
+            new_block(); // 뉴 블럭 flag가 있는 경우 새로운 블럭 생성
+        }
     }
 }
 
@@ -236,21 +263,21 @@ void reset_main(void) { //게임판을 초기화
         }
     }
     for (j = 1; j < MAIN_X; j++) { //y값이 3인 위치에 천장을 만듦
-        main_org[3][j] = CEILLING;
+        main_org[3][j] = CEILING;
     }
-    for (i = 1; i < MAIN_Y - 1; i++) { //좌우 벽을 만듦
+    for (i = 1; i < MAIN_Y - 2; i++) { //좌우 벽을 만듦
         main_org[i][0] = WALL;
         main_org[i][MAIN_X - 1] = WALL;
     }
     for (j = 0; j < MAIN_X; j++) { //바닥벽을 만듦
-        main_org[MAIN_Y - 1][j] = WALL;
+        main_org[MAIN_Y - 2][j] = WALL;
     }
 }
 
 void reset_main_cpy(void) { //main_cpy를 초기화
     int i, j;
 
-    for (i = 0; i < MAIN_Y; i++) {         //게임판에 게임에 사용되지 않는 숫자를 넣음
+    for (i = 0; i < MAIN_Y - 1; i++) {         //게임판에 게임에 사용되지 않는 숫자를 넣음
         for (j = 0; j < MAIN_X; j++) {  //이는 main_org와 같은 숫자가 없게 하기 위함
             main_cpy[i][j] = 100;
         }
@@ -282,19 +309,23 @@ void draw_map(void) { //게임 상태 표시를 나타내는 함수
 void draw_main(void) { //게임판 그리는 함수
     int i, j;
 
-    for (j = 1; j < MAIN_X - 1; j++) { //천장은 계속 새로운블럭이 지나가서 지워지면 새로 그려줌
-        if (main_org[3][j] == EMPTY) main_org[3][j] = CEILLING;
+    if (reverse_onprocess_on == false) { //리버스 모드 변환중일 때는 필요없음
+
+        for (j = 1; j < MAIN_X - 1; j++) { //천장은 계속 새로운블럭이 지나가서 지워지면 새로 그려줌
+            if (main_org[reverse_ceiling_y][j] == EMPTY) main_org[reverse_ceiling_y][j] = CEILING;
+        }
     }
+
     for (i = 0; i < MAIN_Y; i++) {
         for (j = 0; j < MAIN_X; j++) {
             if (main_cpy[i][j] != main_org[i][j]) { //cpy랑 비교해서 값이 달라진 부분만 새로 그려줌.
                 //이게 없으면 게임판전체를 계속 그려서 느려지고 반짝거림
-                gotoxy(MAIN_X_ADJ + j, MAIN_Y_ADJ + i);
+                gotoxy(MAIN_X_ADJ + j, MAIN_Y_ADJ + i - 1);
                 switch (main_org[i][j]) {
                 case EMPTY: //빈칸모양
                     printf("  ");
                     break;
-                case CEILLING: //천장모양
+                case CEILING: //천장모양
                     printf(". ");
                     break;
                 case WALL: //벽모양
@@ -307,7 +338,7 @@ void draw_main(void) { //게임판 그리는 함수
             }
         }
     }
-    for (i = 0; i < MAIN_Y; i++) { //게임판을 그린 후 main_cpy에 복사
+    for (i = 0; i < MAIN_Y - 1; i++) { //게임판을 그린 후 main_cpy에 복사
         for (j = 0; j < MAIN_X; j++) {
             main_cpy[i][j] = main_org[i][j];
         }
@@ -343,11 +374,12 @@ void print_color_block(int x)
         break;
     }
 }
+
 void new_block(void) { //새로운 블록 생성
     int i, j;
 
     bx = (MAIN_X / 2) - 1; //블록 생성 위치x좌표(게임판의 가운데)
-    by = 0;  //블록 생성위치 y좌표(제일 위)
+    by = reverse_block_y;
     b_type = b_type_next; //다음블럭값을 가져옴
     b_type_next = rand() % 7; //다음 블럭을 만듦
     b_rotation = 0;  //회전은 0번으로 가져옴
@@ -378,8 +410,13 @@ void check_key(void) {
 
     if (_kbhit()) { //키입력이 있는 경우
         key = _getch(); //키값을 받음
+        
         if (key == 224) { //방향키인경우
             do { key = _getch(); } while (key == 224);//방향키지시값을 버림
+            if (reverse_dir == -1) {
+                if (key == UP)key = DOWN;
+                else if (key == DOWN)key = UP;
+            }
             switch (key) {
             case LEFT: //왼쪽키 눌렀을때
                 if (check_crush(bx - 1, by, b_rotation) == true) move_block(LEFT);
@@ -388,12 +425,12 @@ void check_key(void) {
                 if (check_crush(bx + 1, by, b_rotation) == true) move_block(RIGHT);
                 break;
             case DOWN: //아래쪽 방향키 눌렀을때-위와 동일하게 처리됨
-                if (check_crush(bx, by + 1, b_rotation) == true) move_block(DOWN);
+                if (check_crush(bx, by + reverse_dir, b_rotation) == true) move_block(DOWN);
                 break;
             case UP: //위쪽 방향키 눌렀을때
                 if (check_crush(bx, by, (b_rotation + 1) % 4) == true) move_block(UP);
                 //회전할 수 있는지 체크 후 가능하면 회전
-                else if (crush_on == 1 && check_crush(bx, by - 1, (b_rotation + 1) % 4) == true) move_block(100);
+                else if (crush_on == 1 && check_crush(bx, by - reverse_dir, (b_rotation + 1) % 4) == true) move_block(100);
             }                    //바닥에 닿은 경우 위쪽으로 한칸띄워서 회전이 가능하면 그렇게 함(특수동작)
         }
         else { //방향키가 아닌경우
@@ -419,10 +456,10 @@ void check_key(void) {
 
 void drop_block(void) {
     int i, j;
-
-    if (crush_on && check_crush(bx, by + 1, b_rotation) == true) crush_on = 0; //밑이 비어있으면 crush flag 끔
-    if (crush_on && check_crush(bx, by + 1, b_rotation) == false) { //밑이 비어있지않고 crush flag가 켜저있으면
-        for (i = 0; i < MAIN_Y; i++) { //현재 조작중인 블럭을 굳힘
+    
+    if (crush_on && check_crush(bx, by + reverse_dir, b_rotation) == true) crush_on = 0; //밑, 또는 위가 비어있으면 crush flag 끔
+    if (crush_on && check_crush(bx, by + reverse_dir, b_rotation) == false) { //밑, 또는 위가 비어있지않고 crush flag가 켜저있으면
+        for (i = 0; i < MAIN_Y - 1; i++) { //현재 조작중인 블럭을 굳힘
             for (j = 0; j < MAIN_X; j++) {
                 if (main_org[i][j] <= -2) main_org[i][j] = abs(main_org[i][j]);
             }
@@ -432,8 +469,8 @@ void drop_block(void) {
         new_block_on = 1; //새로운 블럭생성 flag를 켬
         return; //함수 종료
     }
-    if (check_crush(bx, by + 1, b_rotation) == true) move_block(DOWN); //밑이 비어있으면 밑으로 한칸 이동
-    if (check_crush(bx, by + 1, b_rotation) == false) crush_on++; //밑으로 이동이 안되면  crush flag를 켬
+    if (check_crush(bx, by + reverse_dir, b_rotation) == true) move_block(DOWN); //밑이 비어있으면 밑으로(또는 위로) 한칸 이동
+    if (check_crush(bx, by + reverse_dir, b_rotation) == false) crush_on++; //밑으로 이동이 안되면  crush flag를 켬
 }
 
 int check_crush(int bx, int by, int b_rotation) { //지정된 좌표와 회전값으로 충돌이 있는지 검사
@@ -486,7 +523,7 @@ void move_block(int dir) { //블록을 이동시킴
         bx++;
         break;
 
-    case DOWN:    //아래쪽 방향. 왼쪽방향이랑 같은 원리로 동작
+    case DOWN:    //떨어지는(또는 올라가는)방향.
         for (i = 0; i < 4; i++) { //현재좌표의 블럭을 지움
             for (j = 0; j < 4; j++) {
                 if (blocks[b_type][b_rotation][i][j] == 1) {
@@ -497,10 +534,10 @@ void move_block(int dir) { //블록을 이동시킴
         }
         for (i = 0; i < 4; i++) {
             for (j = 0; j < 4; j++) {
-                if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i + 1][bx + j] = temp;
+                if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i + reverse_dir][bx + j] = temp;
             }
         }
-        by++;
+        by += reverse_dir;
         break;
 
     case UP: //키보드 위쪽 눌렀을때 회전시킴.
@@ -533,10 +570,10 @@ void move_block(int dir) { //블록을 이동시킴
         b_rotation = (b_rotation + 1) % 4;
         for (i = 0; i < 4; i++) {
             for (j = 0; j < 4; j++) {
-                if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i - 1][bx + j] = temp;
+                if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i - reverse_dir][bx + j] = temp;
             }
         }
-        by--;
+        by -= reverse_dir;
         break;
     }
 }
@@ -547,24 +584,48 @@ void check_line(void) {
     int    block_amount; //한줄의 블록갯수를 저장하는 변수
     int combo = 0; //콤보갯수 저장하는 변수 지정및 초기화
 
-    for (i = MAIN_Y - 2; i > 3;) { //i=MAIN_Y-2 : 밑쪽벽의 윗칸부터,  i>3 : 천장(3)아래까지 검사
-        block_amount = 0; //블록갯수 저장 변수 초기화
-        for (j = 1; j < MAIN_X - 1; j++) { //벽과 벽사이의 블록갯루를 셈
-            if (main_org[i][j] > 0) block_amount++;
-        }
-        if (block_amount == MAIN_X - 2) { //블록이 가득 찬 경우
-            score += 100 * level * (1 + ((MAIN_Y - 1 - i) / 3) * 0.5); //높이에 따른 점수추가
-            cnt++; //지운 줄 갯수 카운트 증가
-            combo++; //콤보수 증가
-            for (k = i; k > 1; k--) { //윗줄을 한칸씩 모두 내림(윗줄이 천장이 아닌 경우에만)
-                for (l = 1; l < MAIN_X - 1; l++) {
-                    if (main_org[k - 1][l] != CEILLING) main_org[k][l] = main_org[k - 1][l];
-                    if (main_org[k - 1][l] == CEILLING) main_org[k][l] = EMPTY;
-                    //윗줄이 천장인 경우에는 천장을 한칸 내리면 안되니까 빈칸을 넣음
+    if (reverse_dir == 1) {
+        for (i = MAIN_Y - 3; i > 3;) { //i=MAIN_Y-2 : 밑쪽벽의 윗칸부터,  i>3 : 천장(3)아래까지 검사
+            block_amount = 0; //블록갯수 저장 변수 초기화
+            for (j = 1; j < MAIN_X - 1; j++) { //벽과 벽사이의 블록갯루를 셈
+                if (main_org[i][j] > 0) block_amount++;
+            }
+            if (block_amount == MAIN_X - 2) { //블록이 가득 찬 경우
+                score += 100 * level * (1 + ((MAIN_Y - 2 - i) / 3) * 0.5); //높이에 따른 점수추가
+                cnt++; //지운 줄 갯수 카운트 증가
+                combo++; //콤보수 증가
+                for (k = i; k > 1; k--) { //윗줄을 한칸씩 모두 내림(윗줄이 천장이 아닌 경우에만)
+                    for (l = 1; l < MAIN_X - 1; l++) {
+                        if (main_org[k - 1][l] != CEILING) main_org[k][l] = main_org[k - 1][l];
+                        if (main_org[k - 1][l] == CEILING) main_org[k][l] = EMPTY;
+                        //윗줄이 천장인 경우에는 천장을 한칸 내리면 안되니까 빈칸을 넣음
+                    }
                 }
             }
+            else i--;
         }
-        else i--;
+    }
+    else {
+
+        for (i = 2; i < reverse_ceiling_y - 1;) { //리버스 모드용 검사
+            block_amount = 0; //블록갯수 저장 변수 초기화
+            for (j = 1; j < MAIN_X - 1; j++) { //벽과 벽사이의 블록갯루를 셈
+                if (main_org[i][j] > 0) block_amount++;
+            }
+            if (block_amount == MAIN_X - 2) { //블록이 가득 찬 경우
+                score += 100 * level * (1 + ((MAIN_Y - 2 - i) / 3) * 0.5); //높이에 따른 점수추가
+                cnt++; //지운 줄 갯수 카운트 증가
+                combo++; //콤보수 증가
+                for (k = i; k < reverse_ceiling_y; k++) { //밑줄을 한칸씩 모두 내림(밑줄이 천장이 아닌 경우에만)
+                    for (l = 1; l < MAIN_X - 1; l++) {
+                        if (main_org[k + 1][l] != CEILING) main_org[k][l] = main_org[k + 1][l];
+                        if (main_org[k + 1][l] == CEILING) main_org[k][l] = EMPTY;
+                        //윗줄이 천장인 경우에는 천장을 한칸 내리면 안되니까 빈칸을 넣음
+                    }
+                }
+            }
+            else i++;
+        }
     }
     if (combo) { //줄 삭제가 있는 경우 점수와 레벨 목표를 새로 표시함
         if (combo > 1) { //2콤보이상인 경우 경우 보너스및 메세지를 게임판에 띄웠다가 지움
@@ -582,7 +643,7 @@ void check_line(void) {
 void check_level_up(void) {
     int i, j;
 
-    if (cnt >= 1) { //레벨별로 10줄씩 없애야함. 10줄이상 없앤 경우
+    if (cnt >= 3) { //레벨별로 10줄씩 없애야함. 10줄이상 없앤 경우
         draw_main();
         level_up_on = 1; //레벨업 flag를 띄움
         level += 1; //레벨을 1 올림
@@ -606,35 +667,35 @@ void check_level_up(void) {
 
 
         //.check_line()함수 내부에서 level up flag가 켜져있는 경우 점수는 없음.
-        switch (level) { //레벨별로 속도를 조절해줌.
-        case 2:
-            speed = 50;
-            break;
-        case 3:
-            speed = 25;
-            break;
-        case 4:
-            speed = 10;
-            break;
-        case 5:
-            speed = 5;
-            break;
-        case 6:
-            speed = 4;
-            break;
-        case 7:
-            speed = 3;
-            break;
-        case 8:
-            speed = 2;
-            break;
-        case 9:
-            speed = 1;
-            break;
-        case 10:
-            speed = 0;
-            break;
-        }
+        //switch (level) { //레벨별로 속도를 조절해줌.
+        //case 2:
+        //    speed = 50;
+        //    break;
+        //case 3:
+        //    speed = 25;
+        //    break;
+        //case 4:
+        //    speed = 10;
+        //    break;
+        //case 5:
+        //    speed = 5;
+        //    break;
+        //case 6:
+        //    speed = 4;
+        //    break;
+        //case 7:
+        //    speed = 3;
+        //    break;
+        //case 8:
+        //    speed = 2;
+        //    break;
+        //case 9:
+        //    speed = 1;
+        //    break;
+        //case 10:
+        //    speed = 0;
+        //    break;
+        //}
         level_up_on = 0; //레벨업 flag꺼줌
 
         gotoxy(STATUS_X_ADJ, STATUS_Y_LEVEL); printf(" LEVEL : %5d", level); //레벨표시
@@ -643,15 +704,129 @@ void check_level_up(void) {
     }
 }
 
+void reverse_map_on()
+{
+    reverse_onprocess_on = 1;
+    reverse_dir = -1;//리버스 구현용 변수 설정
+    reverse_ceiling_y = MAIN_Y - 4;
+    reverse_block_y = MAIN_Y - 4;
+
+
+     for(int i = 0; i < 7; i++) //블럭들 방향돌리기 버그 피하기용
+         for(int j = 0; j < 4; j++)
+             for(int k = 0; k < 2; k++)
+                 for (int l = 0; l < 4; l++)
+                 {
+                     int temp = blocks[i][j][k][l];
+                     blocks[i][j][k][l] = blocks[i][j][3 - k][3 - l];
+                     blocks[i][j][3 - k][3 - l] = temp;
+                 }
+
+    Sleep(1000);
+    gotoxy(7, 5);
+    printf("REVERSE!");//리버스 문구 출력
+    Sleep(1000);
+    system("cls"); //화면 지우고 새로 그림
+    reset_main_cpy();
+    draw_main();
+    draw_map();
+
+    for (int j = 1; j < MAIN_X - 1; j++) {//바닥 뒤집기
+        Sleep(25);
+        main_org[MAIN_Y - 2][j] = EMPTY; 
+        main_org[1][j] = WALL;
+
+        draw_main();
+    }
+    for (int j = 1; j < MAIN_X - 1; j++) {
+        main_org[3][j] = EMPTY;
+        if (main_org[MAIN_Y - 4][j] == EMPTY) main_org[MAIN_Y - 4][j] = CEILING;
+    }
+    
+    while (1) { //블록들 위로 밀기
+        Sleep(25);
+        for (int i = 2; i < MAIN_Y - 2; i++)
+            for (int j = 1; j < MAIN_X - 1; j++) {
+
+                main_org[i][j] = main_org[i + 1][j];
+                if (main_org[i][j] == CEILING) main_org[i][j] = EMPTY;
+            }
+       
+        draw_main();
+        int stop_on = 0;
+        for (int j = 1; j < MAIN_X - 1; j++)
+            if (main_org[2][j] != EMPTY)stop_on = 1;
+
+        if (stop_on)break;
+
+    }
+    while (_kbhit()) _getch();
+    reverse_onprocess_on = 0;
+}
+void reverse_map_off()
+{
+    reverse_dir = 1;//리버스 구현용 변수 설정
+    reverse_ceiling_y = 3;
+    reverse_block_y = 0;
+    reverse_onprocess_on = 1;
+
+    for (int i = 0; i < 7; i++)
+        for (int j = 0; j < 4; j++)
+            for (int k = 0; k < 2; k++)
+                for (int l = 0; l < 4; l++)
+                {
+                    int temp = blocks[i][j][k][l];
+                    blocks[i][j][k][l] = blocks[i][j][3 - k][3 - l];
+                    blocks[i][j][3 - k][3 - l] = temp;
+                }
+    Sleep(1000);
+    for (int j = 1; j < MAIN_X - 1; j++) {//바닥 뒤집기
+        Sleep(25);
+        main_org[MAIN_Y - 2][j] = WALL;
+        main_org[1][j] = EMPTY;
+
+        draw_main();
+    }
+    for (int j = 1; j < MAIN_X - 1; j++) {//천장 뒤집기
+        if (main_org[3][j] == EMPTY)main_org[3][j] = CEILING;
+        main_org[MAIN_Y - 4][j] = EMPTY;
+    }
+    
+
+
+    while (1) { //블록들 밑로 밀기
+        Sleep(25);
+        for (int i = MAIN_Y - 3; i > 1; i--)
+            for (int j = 1; j < MAIN_X - 1; j++) {
+
+                main_org[i][j] = main_org[i - 1][j];
+                if (main_org[i][j] == CEILING) main_org[i][j] = EMPTY;
+            }
+
+        draw_main();
+        int stop_on = 0;
+        for (int j = 1; j < MAIN_X - 1; j++)
+            if (main_org[MAIN_Y - 3][j] != EMPTY)stop_on = 1;
+
+        if (stop_on)break;
+    }
+
+    while (_kbhit()) _getch();
+    reverse_onprocess_on = 0; 
+    reverse_time = 0;//리버스용 변수 초기화
+}
+
 void check_game_over(void) {
     int i;
 
     int x = 5;
     int y = 5;
 
+
     for (i = 1; i < MAIN_X - 2; i++) {
-        if (main_org[3][i] > 0) { //천장(위에서 세번째 줄)에 inactive가 생성되면 게임 오버
-            gotoxy(x, y + 0); printf("▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤"); //게임오버 메세지
+        if (main_org[reverse_ceiling_y][i] > 0) { //천장에 inactive가 생성되면 게임 오버
+            if (reverse_dir == -1)reverse_map_off();//리버스 시 뒤바꾸기
+            gotoxy(x, y + 0); printf("▤  ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤"); //게임오버 메세지
             gotoxy(x, y + 1); printf("▤                              ▤");
             gotoxy(x, y + 2); printf("▤  +-----------------------+   ▤");
             gotoxy(x, y + 3); printf("▤  |  G A M E  O V E R..   |   ▤");
@@ -660,7 +835,7 @@ void check_game_over(void) {
             gotoxy(x, y + 6); printf("▤                              ▤");
             gotoxy(x, y + 7); printf("▤  Press any key to restart..  ▤");
             gotoxy(x, y + 8); printf("▤                              ▤");
-            gotoxy(x, y + 9); printf("▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤▤");
+            gotoxy(x, y + 9); printf("▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤  ▤ " ) ;
             last_score = score; //게임점수를 옮김
 
             if (score > best_score) { //최고기록 갱신시
@@ -712,7 +887,7 @@ void pause(void) { //게임 일시정지 함수
         for (j = 0; j < 4; j++) {
             if (blocks[b_type_next][0][i][j] == 1) {
                 gotoxy(MAIN_X + MAIN_X_ADJ + 3 + j, i + 6);
-                printf("■");
+                print_color_block(-(b_type_next + 2));
             }
             else {
                 gotoxy(MAIN_X + MAIN_X_ADJ + 3 + j, i + 6);
