@@ -102,7 +102,8 @@ int reverse_dir = 1; //블럭의 방향(기본 1, 리버스 모드시 -1)
 int reverse_block_y = 0; //(블럭생성 좌표의 y값)
 int reverse_ceiling_y = 3; //(천장 y값)
 int reverse_onprocess_on = 0; // 리버스 모드 전환중일 시 1, 아니면 0
-
+double reverse_chance = 2; //리버스 발현 확률;
+double reverse_chance_initial = 2; //위 변수 초기값;
 void title(void); //게임시작화면
 void reset(void); //게임판 초기화
 void reset_main(void); //메인 게임판(main_org[][]를 초기화)
@@ -150,6 +151,12 @@ void setcursortype(CURSOR_TYPE c) { //커서숨기는 함수
     SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &CurInfo);
 }
 
+bool true_prob(int x)
+{
+    int r = rand();
+    if (1 <= r && r <= (double)32767 * x / 100)return 1;
+    else return 0;
+}
 int main() {
     int i;
 
@@ -157,15 +164,13 @@ int main() {
     setcursortype(NOCURSOR); //커서 없앰
     title(); //메인타이틀 호출
     reset(); //게임판 리셋
-    PlaySound("tetris_jazz_alert.wav", 0, SND_FILENAME | SND_ASYNC | SND_LOOP);
+    PlaySound("tetris jazz final 5", 0, SND_FILENAME | SND_ASYNC | SND_LOOP);
   
     while (1) {
-        for (i = 0; i < 5; i++) { //블록이 한칸떨어지는동안 5번 키입력받을 수 있음
+        for (i = 0; i < 20; i++) { //블록이 한칸떨어지는동안 5번 키입력받을 수 있음
             check_key(); //키입력확인
             draw_main(); //화면을 그림
-            Sleep(speed); //게임속도조절
-            if (crush_on && check_crush(bx, by + 1, b_rotation) == false) Sleep(100);
-            //블록이 충돌중인경우 추가로 이동및 회전할 시간을 갖음
+            Sleep(speed); //게임속도조절   
             if (space_key_on == 1) { //스페이스바를 누른경우(hard drop) 추가로 이동및 회전할수 없음 break;
                 space_key_on = 0;
                 break;
@@ -177,14 +182,19 @@ int main() {
         if (new_block_on == 1)
         {
             int r = rand(), cur_time = time(NULL);
-            if (reverse_time == 0 && 0 <= r && r <= 16383)
+            if (reverse_time == 0 && true_prob(reverse_chance) == true)//리버스 모드 on
             {
                 reverse_time = cur_time;
                 reverse_map_on();
             }
-            if (reverse_time != 0 && cur_time - reverse_time >= 45)//45초동안 리버스모드, 난이도에 따라 바뀌게 만들 예정
+            if (reverse_time != 0 && cur_time - reverse_time >= 45)//45초 후에 리버스모드 끄기, 난이도에 따라 바뀌게 만들 예정
             {
                 reverse_map_off();
+            }
+            if (reverse_time == 0)reverse_chance *= 1.2;//리버스 모드 확률 증가
+            if (reverse_time != 0)
+            {
+
             }
 
 
@@ -241,7 +251,7 @@ void reset(void) {
     key = 0;
     crush_on = 0;
     cnt = 0;
-    speed = 100;
+    speed = 50;
 
     system("cls"); //화면지움
     reset_main(); // main_org를 초기화
@@ -594,6 +604,12 @@ void check_line(void) {
                 score += 100 * level * (1 + ((MAIN_Y - 2 - i) / 3) * 0.5); //높이에 따른 점수추가
                 cnt++; //지운 줄 갯수 카운트 증가
                 combo++; //콤보수 증가
+                for (int l = 1; l < MAIN_X - 1; l++)
+                {
+                    Sleep(speed);
+                    main_org[i][l] = EMPTY;
+                    draw_main();
+                }
                 for (k = i; k > 1; k--) { //윗줄을 한칸씩 모두 내림(윗줄이 천장이 아닌 경우에만)
                     for (l = 1; l < MAIN_X - 1; l++) {
                         if (main_org[k - 1][l] != CEILING) main_org[k][l] = main_org[k - 1][l];
@@ -616,7 +632,13 @@ void check_line(void) {
                 score += 100 * level * (1 + ((MAIN_Y - 2 - i) / 3) * 0.5); //높이에 따른 점수추가
                 cnt++; //지운 줄 갯수 카운트 증가
                 combo++; //콤보수 증가
-                for (k = i; k < reverse_ceiling_y; k++) { //밑줄을 한칸씩 모두 내림(밑줄이 천장이 아닌 경우에만)
+                for (int l = 1; l < MAIN_X - 1; l++)
+                {
+                    Sleep(speed);
+                    main_org[i][l] = EMPTY;
+                    draw_main();
+                }
+                for (k = i; k < reverse_ceiling_y; k++) { //밑줄을 한칸씩 모두 올림(밑줄이 천장이 아닌 경우에만)
                     for (l = 1; l < MAIN_X - 1; l++) {
                         if (main_org[k + 1][l] != CEILING) main_org[k][l] = main_org[k + 1][l];
                         if (main_org[k + 1][l] == CEILING) main_org[k][l] = EMPTY;
@@ -626,6 +648,8 @@ void check_line(void) {
             }
             else i++;
         }
+        Sleep(speed);
+        draw_main();
     }
     if (combo) { //줄 삭제가 있는 경우 점수와 레벨 목표를 새로 표시함
         if (combo > 1) { //2콤보이상인 경우 경우 보너스및 메세지를 게임판에 띄웠다가 지움
@@ -643,7 +667,7 @@ void check_line(void) {
 void check_level_up(void) {
     int i, j;
 
-    if (cnt >= 3) { //레벨별로 10줄씩 없애야함. 10줄이상 없앤 경우
+    if (cnt >= 10) { //레벨별로 10줄씩 없애야함. 10줄이상 없앤 경우
         draw_main();
         level_up_on = 1; //레벨업 flag를 띄움
         level += 1; //레벨을 1 올림
@@ -658,44 +682,43 @@ void check_level_up(void) {
 
             gotoxy(MAIN_X_ADJ + (MAIN_X / 2) - 3, MAIN_Y_ADJ + 4);
             printf("☆LEVEL UP!☆");
-            gotoxy(MAIN_X_ADJ + (MAIN_X / 2) - 2, MAIN_Y_ADJ + 6);
-            printf("☆SPEED UP!☆");
             Sleep(200);
         }
         reset_main_cpy(); //텍스트를 지우기 위해 main_cpy을 초기화.
         //(main_cpy와 main_org가 전부 다르므로 다음번 draw()호출시 게임판 전체를 새로 그리게 됨)
 
 
-        //.check_line()함수 내부에서 level up flag가 켜져있는 경우 점수는 없음.
-        //switch (level) { //레벨별로 속도를 조절해줌.
-        //case 2:
-        //    speed = 50;
-        //    break;
-        //case 3:
-        //    speed = 25;
-        //    break;
-        //case 4:
-        //    speed = 10;
-        //    break;
-        //case 5:
-        //    speed = 5;
-        //    break;
-        //case 6:
-        //    speed = 4;
-        //    break;
-        //case 7:
-        //    speed = 3;
-        //    break;
-        //case 8:
-        //    speed = 2;
-        //    break;
-        //case 9:
-        //    speed = 1;
-        //    break;
-        //case 10:
-        //    speed = 0;
-        //    break;
-        //}
+        switch (level) { //레벨별로 속도를 조절해줌.
+        case 2:
+            reverse_chance_initial = 3;
+            break;
+        case 3:
+            speed = 45;
+            reverse_chance_initial = 3.5;
+            break;
+        case 4:
+            reverse_chance_initial = 4;
+            break;
+        case 5:
+            speed = 40;
+            reverse_chance_initial = 5;
+            break;
+        case 6:
+            reverse_chance_initial = 7;
+            break;
+        case 7:
+            speed = 35;
+            reverse_chance_initial = 9;
+            break;
+        case 8:;
+            reverse_chance_initial = 12;
+            break;
+        case 9:
+            speed = 30;
+            break;
+        case 10:
+            break;
+        }
         level_up_on = 0; //레벨업 flag꺼줌
 
         gotoxy(STATUS_X_ADJ, STATUS_Y_LEVEL); printf(" LEVEL : %5d", level); //레벨표시
@@ -732,7 +755,7 @@ void reverse_map_on()
     draw_map();
 
     for (int j = 1; j < MAIN_X - 1; j++) {//바닥 뒤집기
-        Sleep(25);
+        Sleep(speed);
         main_org[MAIN_Y - 2][j] = EMPTY; 
         main_org[1][j] = WALL;
 
@@ -744,7 +767,7 @@ void reverse_map_on()
     }
     
     while (1) { //블록들 위로 밀기
-        Sleep(25);
+        Sleep(speed);
         for (int i = 2; i < MAIN_Y - 2; i++)
             for (int j = 1; j < MAIN_X - 1; j++) {
 
@@ -765,10 +788,13 @@ void reverse_map_on()
 }
 void reverse_map_off()
 {
+
     reverse_dir = 1;//리버스 구현용 변수 설정
+    reverse_time = 0;
     reverse_ceiling_y = 3;
     reverse_block_y = 0;
     reverse_onprocess_on = 1;
+    reverse_chance = reverse_chance_initial;
 
     for (int i = 0; i < 7; i++)
         for (int j = 0; j < 4; j++)
@@ -781,7 +807,7 @@ void reverse_map_off()
                 }
     Sleep(1000);
     for (int j = 1; j < MAIN_X - 1; j++) {//바닥 뒤집기
-        Sleep(25);
+        Sleep(speed);
         main_org[MAIN_Y - 2][j] = WALL;
         main_org[1][j] = EMPTY;
 
@@ -795,7 +821,7 @@ void reverse_map_off()
 
 
     while (1) { //블록들 밑로 밀기
-        Sleep(25);
+        Sleep(speed);
         for (int i = MAIN_Y - 3; i > 1; i--)
             for (int j = 1; j < MAIN_X - 1; j++) {
 
@@ -812,8 +838,7 @@ void reverse_map_off()
     }
 
     while (_kbhit()) _getch();
-    reverse_onprocess_on = 0; 
-    reverse_time = 0;//리버스용 변수 초기화
+    reverse_onprocess_on = 0; //리버스중 flag 끔 
 }
 
 void check_game_over(void) {
