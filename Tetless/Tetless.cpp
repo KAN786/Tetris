@@ -196,7 +196,7 @@ int main() {
     PlaySound("tetris jazz final 5", 0, SND_FILENAME | SND_ASYNC | SND_LOOP);
   
     while (1) {
-        for (i = 0; i < 20; i++) { //블록이 한칸떨어지는동안 5번 키입력받을 수 있음
+        for (i = 0; i < 20; i++) { //블록이 한칸떨어지는동안 20번 키입력받을 수 있음
             if (disco_on) {
                 if (disco_light_off == 1) {
                     if (true_prob(10)) {
@@ -245,8 +245,8 @@ int main() {
             if (reverse_on != 0 && total_block - reverse_cur_block >= rand() % 11 + 5)//5 ~ 15블록 후에 리버스모드 끄기, 난이도에 따라 바뀌게 만들 예정
                 reverse_map_off();
 
-            if (reverse_on == 0)event_chance *= 1.1;//리버스 아닐 시 이벤트 확률 증가
-            if (disco_on == 0)event_chance *= 1.1;//디스코 아닐 시 이벤트 확률 증가
+            if (reverse_on == 0)event_chance *= 1.5;//리버스 아닐 시 이벤트 확률 증가
+            if (disco_on == 0)event_chance *= 1.5;//디스코 아닐 시 이벤트 확률 증가
 
 
             new_block(); // 뉴 블럭 flag가 있는 경우 새로운 블럭 생성
@@ -270,9 +270,9 @@ void title(void) {
     gotoxy(x, y + 10); printf("◁   ▷ : Left / Right");
     gotoxy(x, y + 11); printf("  ▽   : Soft Drop");
     gotoxy(x, y + 12); printf(" SPACE : Hard Drop");
-    gotoxy(x, y + 13); printf("   P   : Pause");
-    gotoxy(x, y + 14); printf("  ESC  : Quit");
-    gotoxy(x, y + 16); printf("BONUS FOR HARD DROPS / COMBOS");
+    gotoxy(x, y + 13); printf("   Z   : Switch");
+    gotoxy(x, y + 14); printf("   P   : Pause");
+    gotoxy(x, y + 15); printf("  ESC  : Quit");
 
     for (cnt = 0;; cnt++) { //cnt를 1씩 증가시키면서 계속 반복    //하나도 안중요한 별 반짝이는 애니메이션효과
         if (_kbhit()) break; //키입력이 있으면 무한루프 종료
@@ -304,7 +304,11 @@ void reset(void) {
     cnt = 0;
     total_block = 0;
     speed = 40;
+
+    disco_on = 0;
+    reverse_on = 0;
     event_chance = event_chance_initial = 2;
+    b_type_switch = -1;
 
     system("cls"); //화면지움
     reset_main(); // main_org를 초기화
@@ -484,22 +488,37 @@ void block_switch() {
             if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i][bx + j] = EMPTY;
         }
     }
-    swap(&b_type, &b_type_switch);
-    if (check_crush(bx, by, b_rotation) == false)
-    {
-        if (check_crush(bx, by - b_direction, b_rotation))by -= b_direction;
-        else if (check_crush(bx + 1, by, b_rotation))bx++;
-        else if (check_crush(bx - 1, by, b_rotation))bx--;
-        else if (check_crush(bx + 2, by, b_rotation))bx += 2;
-        else if (check_crush(bx - 2, by, b_rotation))bx -= 2;
-    }
+    
 
-    for (int i = 0; i < 4; i++) { //게임판 bx, by위치에 블럭생성
-        for (int j = 0; j < 4; j++) {
-            if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i][bx + j] = -(b_type + 2);
+    if (b_type_switch == -1){
+        b_type_switch = b_type;
+        if (check_crush(bx, by, b_rotation) == false)
+        {
+            if (check_crush(bx, by - b_direction, b_rotation))by -= b_direction;
+            else if (check_crush(bx + 1, by, b_rotation))bx++;
+            else if (check_crush(bx - 1, by, b_rotation))bx--;
+            else if (check_crush(bx + 2, by, b_rotation))bx += 2;
+            else if (check_crush(bx - 2, by, b_rotation))bx -= 2;
+        }
+        new_block();
+    }
+    
+    else {
+        swap(&b_type, &b_type_switch);
+        if (check_crush(bx, by, b_rotation) == false)
+        {
+            if (check_crush(bx, by - b_direction, b_rotation))by -= b_direction;
+            else if (check_crush(bx + 1, by, b_rotation))bx++;
+            else if (check_crush(bx - 1, by, b_rotation))bx--;
+            else if (check_crush(bx + 2, by, b_rotation))bx += 2;
+            else if (check_crush(bx - 2, by, b_rotation))bx -= 2;
+        }
+        for (int i = 0; i < 4; i++) { //게임판 bx, by위치에 블럭생성
+            for (int j = 0; j < 4; j++) {
+                if (blocks[b_type][b_rotation][i][j] == 1) main_org[by + i][bx + j] = -(b_type + 2);
+            }
         }
     }
-
     draw_main();
     for (int i = 1; i < 3; i++) { //게임상태표시에 다음에 나올블럭을 그림
         for (int j = 0; j < 4; j++) {
@@ -774,8 +793,8 @@ void check_line(void) {
 void check_level_up(void) {
     int i, j;
 
-    if (cnt == 10) { //레벨별로 10줄씩 없애야함. 10줄이상 없앤 경우
-        cnt = 0;
+    if (cnt >= 10) { //레벨별로 10줄씩 없애야함. 10줄이상 없앤 경우
+        cnt -= 10;
         draw_main();
         level_up_on = 1; //레벨업 flag를 띄움
         level += 1; //레벨을 1 올림
@@ -846,7 +865,7 @@ void reverse_map_on()
              for(int k = 0; k < 2; k++)
                  for (int l = 0; l < 4; l++)
                      swap(&blocks[i][j][k][l], &blocks[i][j][3 - k][3 - l]);
-                 
+
 
     Sleep(1000);
     gotoxy(7, 5);
@@ -856,7 +875,7 @@ void reverse_map_on()
     draw_main();
 
     for (int j = 1; j < MAIN_X - 1; j++) {//바닥 뒤집기
-        Sleep(speed* 5 / 4);
+        Sleep(speed * 5 / 4);
         main_org[MAIN_Y - 2][j] = EMPTY; 
         main_org[1][j] = WALL;
 
@@ -887,6 +906,7 @@ void reverse_map_on()
     while (_kbhit()) _getch();
     reverse_onprocess = 0;
 }
+
 void reverse_map_off()
 {
     reverse_on = 0; //리버스 모드 off
@@ -903,8 +923,8 @@ void reverse_map_off()
                     swap(&blocks[i][j][k][l], &blocks[i][j][3 - k][3 - l]);
     
     Sleep(1000);
-    gotoxy(3, 5);
-    printf("Reverse is over...");//리버스 문구 출력
+    gotoxy(4, 5);
+    printf("Reverse is over :(");//리버스 문구 출력
     Sleep(1000);
     reset_main_cpy(); //화면 새로 그림
     draw_main();
@@ -958,18 +978,17 @@ void disco_map_on() {
     draw_main();
 
 }
+
 void disco_map_off() {
     disco_on = 0;
-
+    disco_light_off = 0;
     Sleep(1000);
-    gotoxy(3, 5);
-    printf("Disco is over...");//디스코 문구 출력
+    gotoxy(5, 5);
+    printf("Disco is over :(");//디스코 문구 출력
     Sleep(1000);
     reset_main_cpy(); //화면 새로 그림
     draw_main();
 }
-
-
 
 void check_game_over(void) {
     int i;
@@ -980,17 +999,18 @@ void check_game_over(void) {
 
     for (i = 1; i < MAIN_X - 2; i++) {
         if (main_org[reverse_ceiling_y][i] > 0) { //천장에 inactive가 생성되면 게임 오버
-            if (b_direction == -1)reverse_map_off();//리버스 시 뒤바꾸기
-            gotoxy(x, y + 0); printf("▤  ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤"); //게임오버 메세지
-            gotoxy(x, y + 1); printf("▤                              ▤");
-            gotoxy(x, y + 2); printf("▤  +-----------------------+   ▤");
-            gotoxy(x, y + 3); printf("▤  |  G A M E  O V E R..   |   ▤");
-            gotoxy(x, y + 4); printf("▤  +-----------------------+   ▤");
-            gotoxy(x, y + 5); printf("▤   YOUR SCORE: %6d         ▤", score);
-            gotoxy(x, y + 6); printf("▤                              ▤");
-            gotoxy(x, y + 7); printf("▤  Press any key to restart..  ▤");
-            gotoxy(x, y + 8); printf("▤                              ▤");
-            gotoxy(x, y + 9); printf("▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤  ▤ " ) ;
+            if (reverse_on == true)reverse_map_off();//리버스 시 뒤바꾸기
+            if (disco_on == true)disco_map_off();
+            gotoxy(x, y + 0); printf("▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤"); //게임오버 메세지
+            gotoxy(x, y + 1); printf("▤                             ▤");
+            gotoxy(x, y + 2); printf("▤  +----------------------+   ▤");
+            gotoxy(x, y + 3); printf("▤  |  G A M E  O V E R..  |   ▤");
+            gotoxy(x, y + 4); printf("▤  +----------------------+   ▤");
+            gotoxy(x, y + 5); printf("▤   YOUR SCORE: %6d        ▤", score);
+            gotoxy(x, y + 6); printf("▤                             ▤");
+            gotoxy(x, y + 7); printf("▤  Press any key to restart.. ▤");
+            gotoxy(x, y + 8); printf("▤                             ▤");
+            gotoxy(x, y + 9); printf("▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ ▤ " ) ;
             last_score = score; //게임점수를 옮김
 
             if (score > best_score) { //최고기록 갱신시
